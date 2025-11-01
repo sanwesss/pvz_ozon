@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление сменами и сотрудниками</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <!-- Страница входа -->
+    <div id="loginPage" class="login-page">
+        <div class="login-container">
+            <h1>🔐 Вход в систему</h1>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginRole">Выберите роль:</label>
+                    <select id="loginRole" required>
+                        <option value="">Выберите роль</option>
+                        <option value="admin">Администратор</option>
+                        <option value="employee">Сотрудник</option>
+                    </select>
+                </div>
+                <div class="form-group" id="employeeSelectGroup" style="display: none;">
+                    <label for="loginEmployee">Сотрудник:</label>
+                    <select id="loginEmployee">
+                        <option value="">Выберите сотрудника</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Пароль:</label>
+                    <input type="password" id="loginPassword" required placeholder="Введите пароль">
+                </div>
+                <button type="submit" class="btn btn-primary">Войти</button>
+                <div id="loginError" class="error-message" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Основное приложение -->
+    <div id="appContainer" class="container" style="display: none;">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>📅 Управление сменами</h1>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span id="currentUserInfo" style="color: var(--primary-blue); font-weight: 600;"></span>
+                    <button class="btn btn-secondary" id="logoutBtn">Выйти</button>
+                </div>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="employees">Сотрудники</button>
+            <button class="tab-btn" data-tab="shifts">Смены</button>
+            <button class="tab-btn" data-tab="calendar">Календарь</button>
+            <button class="tab-btn" data-tab="reports">Отчёты</button>
+        </nav>
+
+        <!-- Вкладка Сотрудники -->
+        <section id="employees" class="tab-content active">
+            <div class="card">
+                <h2>Добавить сотрудника</h2>
+                <form id="employeeForm">
+                    <div class="form-group">
+                        <label for="employeeName">Имя сотрудника:</label>
+                        <input type="text" id="employeeName" required placeholder="Введите имя">
+                    </div>
+                    <div class="form-group">
+                        <label for="employeePassword">Пароль для входа:</label>
+                        <input type="password" id="employeePassword" required placeholder="Придумайте пароль">
+                        <small style="color: var(--text-light); font-size: 12px;">Пароль нужен сотруднику для входа в систему</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Добавить сотрудника</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Список сотрудников</h2>
+                <div id="employeesList" class="list-container">
+                    <!-- Список будет заполнен через JavaScript -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Управление паролями сотрудников</h2>
+                <div id="passwordManagementList" class="list-container">
+                    <!-- Список будет заполнен через JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Вкладка Смены -->
+        <section id="shifts" class="tab-content">
+            <div class="card">
+                <h2>Добавить смену</h2>
+                <form id="shiftForm">
+                    <div class="form-group">
+                        <label for="shiftEmployee">Сотрудник:</label>
+                        <select id="shiftEmployee" required>
+                            <option value="">Выберите сотрудника</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="shiftDate">Дата:</label>
+                        <input type="date" id="shiftDate" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="shiftStart">Начало смены:</label>
+                            <input type="time" id="shiftStart" min="09:00" max="21:00" value="09:00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="shiftEnd">Окончание смены:</label>
+                            <input type="time" id="shiftEnd" min="09:00" max="21:00" value="21:00" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Добавить смену</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Список смен</h2>
+                <div id="shiftsList" class="list-container">
+                    <!-- Список будет заполнен через JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Вкладка Календарь -->
+        <section id="calendar" class="tab-content">
+            <div class="card">
+                <h2>Календарь смен</h2>
+                <div class="calendar-controls">
+                    <button class="btn btn-secondary" id="prevMonth">← Предыдущий</button>
+                    <h3 id="currentMonth"></h3>
+                    <button class="btn btn-secondary" id="nextMonth">Следующий →</button>
+                </div>
+                <div id="calendarContainer"></div>
+            </div>
+        </section>
+
+        <!-- Вкладка Отчёты -->
+        <section id="reports" class="tab-content">
+            <div class="card">
+                <h2>Отчёт по заработку</h2>
+                <div class="form-group" id="reportEmployeeGroup">
+                    <label for="reportEmployee">Выберите сотрудника:</label>
+                    <select id="reportEmployee">
+                        <option value="all">Все сотрудники</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reportStartDate">Дата начала:</label>
+                        <input type="date" id="reportStartDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="reportEndDate">Дата окончания:</label>
+                        <input type="date" id="reportEndDate">
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="generateReport">Сформировать отчёт</button>
+            </div>
+
+            <div class="card" id="reportResults">
+                <h2>Результаты отчёта</h2>
+                <div id="reportContent">
+                    <p class="placeholder">Выберите параметры и нажмите "Сформировать отчёт"</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Индикатор синхронизации -->
+    <div id="syncIndicator" class="sync-indicator" style="display: none;">
+        <span>🔄 Синхронизация...</span>
+    </div>
+
+    <script src="firebase-config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
