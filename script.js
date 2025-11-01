@@ -280,9 +280,12 @@ function showApp() {
     updateCalendar();
     setupReportFilters();
     
-    // Установить текущую дату по умолчанию
-    if (document.getElementById('shiftDate')) {
-        document.getElementById('shiftDate').valueAsDate = new Date();
+    // Установить текущую дату по умолчанию (только если не редактируем)
+    const shiftIdField = document.getElementById('shiftId');
+    if (!shiftIdField || !shiftIdField.value) {
+        if (document.getElementById('shiftDate')) {
+            document.getElementById('shiftDate').valueAsDate = new Date();
+        }
     }
     if (document.getElementById('reportStartDate')) {
         document.getElementById('reportStartDate').valueAsDate = new Date(new Date().setDate(1));
@@ -325,16 +328,11 @@ function updateUIForRole() {
 
 // Инициализация приложения
 function initializeApp() {
-    // Установить минимальную и максимальную дату
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${year}-${month}-${day}`;
-    
+    // Установить только максимальную дату (разрешаем прошлые даты)
     const shiftDateInput = document.getElementById('shiftDate');
     if (shiftDateInput) {
-        shiftDateInput.setAttribute('min', todayStr);
+        // Удаляем ограничение минимальной даты, разрешаем любые даты
+        shiftDateInput.removeAttribute('min');
         shiftDateInput.setAttribute('max', '2099-12-31');
     }
 }
@@ -770,37 +768,126 @@ function addShift() {
         return;
     }
 
-    // Проверить, нет ли уже смены для этого сотрудника в этот день
-    const existingShift = shifts.find(s => 
-        s.employeeId === employeeId && s.date === date
-    );
-
-    if (existingShift) {
-        if (confirm('У этого сотрудника уже есть смена в этот день. Заменить?')) {
-            shifts = shifts.filter(s => s.id !== existingShift.id);
-        } else {
-            return;
+    // Проверка для редактирования или создания новой смены
+    const shiftIdField = document.getElementById('shiftId');
+    const isEditing = shiftIdField && shiftIdField.value;
+    
+    if (isEditing) {
+        // Редактирование существующей смены
+        const shiftId = parseInt(shiftIdField.value);
+        const shiftIndex = shifts.findIndex(s => s.id === shiftId);
+        
+        if (shiftIndex !== -1) {
+            // Проверить, не конфликтует ли с другой сменой (кроме текущей редактируемой)
+            const conflictingShift = shifts.find(s => 
+                s.id !== shiftId && 
+                s.employeeId === employeeId && 
+                s.date === date
+            );
+            
+            if (conflictingShift) {
+                alert('У этого сотрудника уже есть другая смена в этот день. Выберите другую дату или сотрудника.');
+                return;
+            }
+            
+            // Обновляем смену
+            shifts[shiftIndex] = {
+                id: shiftId,
+                employeeId: employeeId,
+                date: date,
+                start: start,
+                end: end
+            };
+            
+            saveShifts();
+            renderShifts();
+            updateCalendar();
+            
+            // Сброс формы редактирования
+            cancelEditShift();
         }
-    }
+    } else {
+        // Создание новой смены
+        // Проверить, нет ли уже смены для этого сотрудника в этот день
+        const existingShift = shifts.find(s => 
+            s.employeeId === employeeId && s.date === date
+        );
+
+        if (existingShift) {
+            if (confirm('У этого сотрудника уже есть смена в этот день. Заменить?')) {
+                shifts = shifts.filter(s => s.id !== existingShift.id);
+            } else {
+                return;
+            }
+        }
 
         const shift = {
-        id: Date.now(),
-        employeeId: employeeId,
-        date: date,
-        start: start,
-        end: end
-    };
+            id: Date.now(),
+            employeeId: employeeId,
+            date: date,
+            start: start,
+            end: end
+        };
 
-    shifts.push(shift);
-    saveShifts();
-    renderShifts();
-    updateCalendar();
+        shifts.push(shift);
+        saveShifts();
+        renderShifts();
+        updateCalendar();
+        
+        // Сброс формы
+        resetShiftForm();
+    }
+}
+
+// Сброс формы смены
+function resetShiftForm() {
+    const form = document.getElementById('shiftForm');
+    if (form) {
+        form.reset();
+        document.getElementById('shiftId').value = '';
+        document.getElementById('shiftDate').valueAsDate = new Date();
+        document.getElementById('shiftStart').value = SHIFT_START_LIMIT;
+        document.getElementById('shiftEnd').value = SHIFT_END_LIMIT;
+        
+        // Обновить заголовок и кнопки
+        document.getElementById('shiftFormTitle').textContent = 'Добавить смену';
+        document.getElementById('shiftSubmitBtn').textContent = 'Добавить смену';
+        document.getElementById('shiftCancelBtn').style.display = 'none';
+    }
+}
+
+// Отмена редактирования смены
+function cancelEditShift() {
+    resetShiftForm();
+}
+
+// Редактирование смены
+function editShift(shiftId) {
+    if (currentUser.role !== 'admin') {
+        alert('Только администратор может редактировать смены');
+        return;
+    }
     
-    // Сброс формы
-    document.getElementById('shiftForm').reset();
-    document.getElementById('shiftDate').valueAsDate = new Date();
-    document.getElementById('shiftStart').value = SHIFT_START_LIMIT;
-    document.getElementById('shiftEnd').value = SHIFT_END_LIMIT;
+    const shift = shifts.find(s => s.id === shiftId);
+    if (!shift) {
+        alert('Смена не найдена');
+        return;
+    }
+    
+    // Заполняем форму данными смены
+    document.getElementById('shiftId').value = shift.id;
+    document.getElementById('shiftEmployee').value = shift.employeeId;
+    document.getElementById('shiftDate').value = shift.date;
+    document.getElementById('shiftStart').value = shift.start;
+    document.getElementById('shiftEnd').value = shift.end;
+    
+    // Обновляем заголовок и кнопки
+    document.getElementById('shiftFormTitle').textContent = 'Редактировать смену';
+    document.getElementById('shiftSubmitBtn').textContent = 'Сохранить изменения';
+    document.getElementById('shiftCancelBtn').style.display = 'block';
+    
+    // Прокрутить к форме
+    document.getElementById('shiftForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Функция saveShifts уже определена выше в коде для работы с Firebase
@@ -836,7 +923,10 @@ function renderShifts() {
                     <span style="color: var(--primary-blue);">${shift.start} - ${shift.end}</span><br>
                     <span style="color: var(--primary-pink); font-weight: bold;">${hours.toFixed(2)} ч. × ${HOURLY_RATE} ₽ = ${earnings.toFixed(2)} ₽</span>
                 </div>
-                <button class="btn btn-danger" onclick="deleteShift(${shift.id})">Удалить</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-change-password" onclick="editShift(${shift.id})">✏️ Редактировать</button>
+                    <button class="btn btn-danger" onclick="deleteShift(${shift.id})">🗑️ Удалить</button>
+                </div>
             </div>
         `;
     }).join('');
