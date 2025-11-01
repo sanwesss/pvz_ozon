@@ -94,8 +94,9 @@
         <!-- Вкладка Смены -->
         <section id="shifts" class="tab-content">
             <div class="card">
-                <h2>Добавить смену</h2>
+                <h2 id="shiftFormTitle">Добавить смену</h2>
                 <form id="shiftForm">
+                    <input type="hidden" id="shiftId" value="">
                     <div class="form-group">
                         <label for="shiftEmployee">Сотрудник:</label>
                         <select id="shiftEmployee" required>
@@ -105,6 +106,7 @@
                     <div class="form-group">
                         <label for="shiftDate">Дата:</label>
                         <input type="date" id="shiftDate" required>
+                        <small style="color: var(--text-light); font-size: 12px;">Можно выбрать любую дату, включая прошедшие периоды</small>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -116,7 +118,10 @@
                             <input type="time" id="shiftEnd" min="09:00" max="21:00" value="21:00" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">Добавить смену</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn btn-primary" id="shiftSubmitBtn">Добавить смену</button>
+                        <button type="button" class="btn btn-secondary" id="shiftCancelBtn" style="display: none;" onclick="cancelEditShift()">Отмена</button>
+                    </div>
                 </form>
             </div>
 
