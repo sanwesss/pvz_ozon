@@ -856,13 +856,13 @@ function resetShiftForm() {
     }
 }
 
-// Отмена редактирования смены
-function cancelEditShift() {
+// Отмена редактирования смены (глобальная функция для HTML)
+window.cancelEditShift = function() {
     resetShiftForm();
 }
 
-// Редактирование смены
-function editShift(shiftId) {
+// Редактирование смены (глобальная функция для HTML)
+window.editShift = function(shiftId) {
     if (currentUser.role !== 'admin') {
         alert('Только администратор может редактировать смены');
         return;
