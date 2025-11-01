@@ -274,6 +274,10 @@ function showApp() {
     // Инициализировать приложение
     initializeApp();
     setupEventListeners();
+    
+    // ВАЖНО: Убрать ограничение минимальной даты ПЕРЕД рендерингом
+    removeDateMinRestriction();
+    
     renderEmployees();
     renderPasswordManagement();
     renderShifts();
@@ -285,6 +289,8 @@ function showApp() {
     if (!shiftIdField || !shiftIdField.value) {
         if (document.getElementById('shiftDate')) {
             document.getElementById('shiftDate').valueAsDate = new Date();
+            // Еще раз убрать min после установки даты
+            removeDateMinRestriction();
         }
     }
     if (document.getElementById('reportStartDate')) {
@@ -297,6 +303,21 @@ function showApp() {
     // Показать информацию о пользователе
     const roleText = currentUser.role === 'admin' ? 'Администратор' : currentUser.employeeName;
     document.getElementById('currentUserInfo').textContent = `👤 ${roleText}`;
+}
+
+// Функция для удаления ограничения минимальной даты
+function removeDateMinRestriction() {
+    const shiftDateInput = document.getElementById('shiftDate');
+    if (shiftDateInput) {
+        shiftDateInput.removeAttribute('min');
+        // Устанавливаем минимальную дату в далеком прошлом, если браузер все равно требует min
+        shiftDateInput.setAttribute('min', '2000-01-01');
+        // И сразу убираем снова, чтобы разрешить любые даты
+        setTimeout(() => {
+            shiftDateInput.removeAttribute('min');
+            shiftDateInput.setAttribute('max', '2099-12-31');
+        }, 10);
+    }
 }
 
 // Обновить интерфейс в зависимости от роли
@@ -328,13 +349,8 @@ function updateUIForRole() {
 
 // Инициализация приложения
 function initializeApp() {
-    // Установить только максимальную дату (разрешаем прошлые даты)
-    const shiftDateInput = document.getElementById('shiftDate');
-    if (shiftDateInput) {
-        // Удаляем ограничение минимальной даты, разрешаем любые даты
-        shiftDateInput.removeAttribute('min');
-        shiftDateInput.setAttribute('max', '2099-12-31');
-    }
+    // Вызываем функцию удаления ограничения даты
+    removeDateMinRestriction();
 }
 
 // Настройка обработчиков для страницы входа
@@ -914,6 +930,7 @@ function renderShifts() {
         const employee = employees.find(emp => emp.id === shift.employeeId);
         const hours = calculateHours(shift.start, shift.end);
         const earnings = calculateEarnings(hours);
+        const shiftId = shift.id;
 
         return `
             <div class="list-item">
@@ -923,21 +940,23 @@ function renderShifts() {
                     <span style="color: var(--primary-blue);">${shift.start} - ${shift.end}</span><br>
                     <span style="color: var(--primary-pink); font-weight: bold;">${hours.toFixed(2)} ч. × ${HOURLY_RATE} ₽ = ${earnings.toFixed(2)} ₽</span>
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-change-password" onclick="editShift(${shift.id})">✏️ Редактировать</button>
-                    <button class="btn btn-danger" onclick="deleteShift(${shift.id})">🗑️ Удалить</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-change-password" onclick="window.editShift && window.editShift(${shiftId})">✏️ Редактировать</button>
+                    <button class="btn btn-danger" onclick="window.deleteShift && window.deleteShift(${shiftId})">🗑️ Удалить</button>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-// Удаление смены
-function deleteShift(id) {
-    shifts = shifts.filter(shift => shift.id !== id);
-    saveShifts();
-    renderShifts();
-    updateCalendar();
+// Удаление смены (глобальная функция для HTML)
+window.deleteShift = function(id) {
+    if (confirm('Вы уверены, что хотите удалить эту смену?')) {
+        shifts = shifts.filter(shift => shift.id !== id);
+        saveShifts();
+        renderShifts();
+        updateCalendar();
+    }
 }
 
 // Расчет часов работы
